@@ -18,44 +18,66 @@ AWS.config.update({
 
 var s3 = new AWS.S3({ version: "2006-03-01" });
 
-// var localStorage = new Map();
+var localStorage = new Map();
 
-// let megapackBucket = {
-//     Bucket: 'megapack'
-// };
+var params = {
+  Bucket: "megapack",
+};
 
-// s3.listObjects(megapackBucket, (err, data) => {
-//     data.Contents.forEach((value) => {
-//         if (value.Key.includes("thumbnail.jpg")) {
-//             console.log(value.Key.split("/")[0]);
-//             console.log(value.Key);
-//             var aircraftKey = value.Key.split("/")[0].split("_").splice(0, 2).join(" ");
-//             var liveryKey = value.Key.split("/")[0];
-//             var imageKey = value.Key;
-//             var entry = {
-//                 liveryKey: liveryKey,
-//                 imageKey: imageKey
-//             };
-//             if (localStorage.has(aircraftKey)) {
-//                 localStorage.get(aircraftKey).push(entry);
-//             } else {
-//                 let arr = new Array();
-//                 arr.push(entry);
-//                 localStorage.set(aircraftKey, arr);
-//             }
-//         }
-//     });
+function s3Print(keys) {
+  keys.forEach((key) => {
+    if (key.includes("thumbnail_small.jpg") || key.includes("thumbnail_small.JPG")) {
+      var aircraftKey = key.split("/")[0].split("_").splice(0, 2).join("_");
+      var liveryKey = key.split("/")[0];
+      var imageKey = key;
+      var entry = {
+        liveryKey: liveryKey,
+        imageKey: imageKey,
+      };
+      if (localStorage.has(aircraftKey)) {
+        localStorage.get(aircraftKey).push(entry);
+      } else {
+        let arr = new Array();
+        arr.push(entry);
+        localStorage.set(aircraftKey, arr);
+      }
+    }
+  });
+  console.log("finished local storage");
+}
 
-//     logStorage();
-// });
+var allKeys = [];
 
-// const logStorage = () => {
-//     localStorage.forEach((key) => {
-//         key.forEach((entry) => {
-//             console.log(entry.imageKey);
-//         });
-//     });
-// }
+listAllKeys();
+function listAllKeys() {
+  s3.listObjectsV2(params, function (err, data) {
+    if (err) {
+      console.log(err, err.stack); // an error occurred
+    } else {
+      var contents = data.Contents;
+      contents.forEach(function (content) {
+        allKeys.push(content.Key);
+      });
+
+      if (data.IsTruncated) {
+        params.ContinuationToken = data.NextContinuationToken;
+        console.log("get further list...");
+        listAllKeys();
+      } else {
+        console.log("done");
+        s3Print(allKeys);
+      }
+    }
+  });
+}
+
+const logStorage = () => {
+  localStorage.forEach((key) => {
+    key.forEach((entry) => {
+      console.log(entry.imageKey);
+    });
+  });
+};
 
 const app = express();
 
@@ -65,6 +87,30 @@ app.use(express.json());
 app.get("/", (_, response) => {
   response.sendFile(__dirname + "/public/index.html");
 });
+
+app.get("/list", (req, res) => {
+  res.json({ localStorage: [...localStorage] });
+});
+
+app.post("/image", (req, res) => {
+  getImage(req.body.imageKey)
+    .then((img) => {
+      res.send(img.Body);
+    })
+    .catch((e) => {
+      res.send(e);
+    });
+});
+
+async function getImage(imageKey) {
+  const data = s3
+    .getObject({
+      Bucket: "megapack",
+      Key: imageKey,
+    })
+    .promise();
+  return data;
+}
 
 app.post("/download", (req, res) => {
   const bucket = "megapack";
@@ -76,8 +122,8 @@ app.post("/download", (req, res) => {
 
   folders.forEach((folder, i) => {
     const params = {
-        Bucket: bucket,
-        Prefix: folder
+      Bucket: bucket,
+      Prefix: folder,
     };
     const files = s3.listObjects(params).createReadStream();
     const xml = new XmlStream(files);
