@@ -26,7 +26,10 @@ var params = {
 
 function s3Print(keys) {
   keys.forEach((key) => {
-    if (key.includes("thumbnail_small.jpg") || key.includes("thumbnail_small.JPG")) {
+    if (
+      key.includes("thumbnail_small.jpg") ||
+      key.includes("thumbnail_small.JPG")
+    ) {
       var aircraftKey = key.split("/")[0].split("_").splice(0, 2).join("_");
       var liveryKey = key.split("/")[0];
       var imageKey = key;
@@ -136,16 +139,16 @@ app.post("/download", (req, res) => {
     });
 
     xml.on("end", function () {
-        numComplete++;
-        if(numComplete >= folders.length) {
-            s3Zip
-            .archive(
+      numComplete++;
+      if (numComplete >= folders.length) {
+        s3Zip
+          .archive(
             { region: region, bucket: bucket, preserveFolderStructure: true },
             "",
             filesArray
-            )
-            .pipe(res);
-        }
+          )
+          .pipe(res);
+      }
     });
   });
 });
