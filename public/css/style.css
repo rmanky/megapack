@@ -8,3 +8,7 @@
     height: 10vw;
     object-fit: cover;
 }
+
+.card-body {
+    width: 100%;
+}
