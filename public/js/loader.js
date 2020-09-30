@@ -1,17 +1,32 @@
-// abort so it dose not look stuck
-window.onunload = () => {
-  writableStream.abort()
-  // also possible to call abort on the writer you got from `getWriter()`
-  writer.abort()
-}
+const accordion = document.getElementById("accordionExample");
+var downloadList = [];
+var selectedButtons = [];
 
-window.onbeforeunload = evt => {
-  if (!done) {
-    evt.returnValue = `Are you sure you want to leave?`;
-  }
-}
+let actionButton = document.createElement("div");
+actionButton.classList.add(
+  "btn",
+  "btn-primary",
+  "fixed-bottom-right",
+  "m-4",
+  "invisible"
+);
+actionButton.textContent = "Download Selected";
+actionButton.addEventListener("click", () => {
+  requestDownload(downloadList);
+  selectedButtons.forEach((button) => {
+      button.classList.remove("btn-danger");
+      button.classList.add("btn-success");
+      button.textContent = "Add";
+  });
+  actionButton.classList.add("invisible");
+  selectedButtons = [];
+  downloadList = [];
+});
 
-function requestDownload(folders) {
+document.body.appendChild(actionButton);
+
+function requestDownload(folderList) {
+  const folders = [...folderList];
   const fileStream = streamSaver.createWriteStream("download.zip");
 
   fetch("/download", {
@@ -49,12 +64,11 @@ fetch("/list", {
   .then((response) => response.json())
   .then((body) => {
     console.log(body.localStorage);
+
     body.localStorage.forEach((folder) =>
       createAccordion(folder[0], folder[1])
     );
   });
-
-const accordion = document.getElementById("accordionExample");
 
 function createAccordion(folder, contents) {
   var cardDiv = document.createElement("div");
@@ -122,11 +136,29 @@ function generateContentCard(content) {
   contentH5.textContent = content.liveryKey.replaceAll("_", " ");
 
   var contentButton = document.createElement("a");
-  contentButton.classList.add("btn", "btn-primary");
-  contentButton.textContent = "Download";
+  contentButton.classList.add("btn", "btn-success");
+  contentButton.textContent = "Add";
 
-  contentButton.addEventListener('click', () => {
-    requestDownload([content.liveryKey]);
+  contentButton.addEventListener("click", () => {
+    if (downloadList.includes(content.liveryKey)) {
+      contentButton.classList.remove("btn-danger");
+      contentButton.classList.add("btn-success");
+      contentButton.textContent = "Add";
+      downloadList = downloadList.filter((e) => e !== content.liveryKey);
+      selectedButtons = selectedButtons.filter((e) => e !== contentButton);
+    } else {
+      contentButton.classList.remove("btn-success");
+      contentButton.classList.add("btn-danger");
+      contentButton.textContent = "Remove";
+      downloadList.push(content.liveryKey);
+      selectedButtons.push(contentButton);
+    }
+    if (downloadList.length > 0) {
+      actionButton.classList.remove("invisible");
+      actionButton.textContent = "Download " + downloadList.length;
+    } else {
+      actionButton.classList.add("invisible");
+    }
   });
 
   contentCard.appendChild(contentImage);

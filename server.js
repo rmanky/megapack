@@ -120,6 +120,9 @@ app.post("/download", (req, res) => {
 
   let folders = req.body.folders;
 
+  console.log(folders);
+
+  let numComplete = 0;
   folders.forEach((folder, i) => {
     const params = {
       Bucket: bucket,
@@ -132,17 +135,18 @@ app.post("/download", (req, res) => {
       filesArray.push(folder + item["$text"].substr(folder.length));
     });
 
-    if (i == folders.length - 1) {
-      xml.on("end", function () {
-        s3Zip
-          .archive(
+    xml.on("end", function () {
+        numComplete++;
+        if(numComplete >= folders.length) {
+            s3Zip
+            .archive(
             { region: region, bucket: bucket, preserveFolderStructure: true },
             "",
             filesArray
-          )
-          .pipe(res);
-      });
-    }
+            )
+            .pipe(res);
+        }
+    });
   });
 });
 
