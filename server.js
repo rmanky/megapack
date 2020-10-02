@@ -1,13 +1,10 @@
 // Load dotenv
 require("dotenv").config();
 
-const fs = require("fs"),
-  join = require("path").join,
-  express = require("express"),
-  bodyParser = require("body-parser"),
-  XmlStream = require("xml-stream"),
+const express = require("express"),
+  compression = require("compression"),
+  archiver = require("archiver"),
   AWS = require("aws-sdk"),
-  s3Zip = require("s3-zip"),
   port = process.env.PORT || 3000;
 
 AWS.config.update({
@@ -16,7 +13,9 @@ AWS.config.update({
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
 
-var s3 = new AWS.S3({ version: "2006-03-01" });
+var s3 = new AWS.S3({
+  version: "2006-03-01",
+});
 
 var localStorage = new Map();
 
@@ -49,10 +48,8 @@ function s3Print(keys) {
   console.log("finished local storage");
 }
 
-var allKeys = [];
-
-listAllKeys();
-function listAllKeys() {
+function listAllKeys(inputKeys) {
+  const allKeys = inputKeys ? inputKeys : [];
   s3.listObjectsV2(params, function (err, data) {
     if (err) {
       console.log(err, err.stack); // an error occurred
@@ -65,7 +62,7 @@ function listAllKeys() {
       if (data.IsTruncated) {
         params.ContinuationToken = data.NextContinuationToken;
         console.log("get further list...");
-        listAllKeys();
+        listAllKeys(allKeys);
       } else {
         console.log("done");
         s3Print(allKeys);
@@ -73,26 +70,22 @@ function listAllKeys() {
     }
   });
 }
-
-const logStorage = () => {
-  localStorage.forEach((key) => {
-    key.forEach((entry) => {
-      console.log(entry.imageKey);
-    });
-  });
-};
+listAllKeys();
 
 const app = express();
 
 app.use(express.static("public"));
 app.use(express.json());
+app.use(compression());
 
 app.get("/", (_, response) => {
   response.sendFile(__dirname + "/public/index.html");
 });
 
-app.get("/list", (req, res) => {
-  res.json({ localStorage: [...localStorage] });
+app.get("/list", (_, res) => {
+  res.json({
+    localStorage: [...localStorage],
+  });
 });
 
 app.post("/image", (req, res) => {
@@ -116,40 +109,45 @@ async function getImage(imageKey) {
 }
 
 app.post("/download", (req, res) => {
-  const bucket = "megapack";
-  const region = "us-east-1";
-
-  const filesArray = [];
-
   let folders = req.body.folders;
-
-  console.log(folders);
-
-  let numComplete = 0;
-  folders.forEach((folder, i) => {
-    const params = {
-      Bucket: bucket,
-      Prefix: folder,
+  let fileList = [];
+  let promiseList = [];
+  folders.forEach((folder) => {
+    const folderParams = {
+      Bucket: "megapack",
+      Prefix: folder + "/",
     };
-    const files = s3.listObjects(params).createReadStream();
-    const xml = new XmlStream(files);
-    xml.collect("Key");
-    xml.on("endElement: Key", function (item) {
-      filesArray.push(folder + item["$text"].substr(folder.length));
+    const promise = new Promise((resolve, reject) => {
+      s3.listObjectsV2(folderParams, function (err, data) {
+        if (err) {
+          console.log(err, err.stack); // an error occurred
+          reject();
+        } else {
+          const contents = data.Contents;
+          contents.forEach((content) => {
+            fileList.push(content.Key);
+          });
+          resolve("done");
+        }
+      });
     });
-
-    xml.on("end", function () {
-      numComplete++;
-      if (numComplete >= folders.length) {
-        s3Zip
-          .archive(
-            { region: region, bucket: bucket, preserveFolderStructure: true },
-            "",
-            filesArray
-          )
-          .pipe(res);
-      }
+    promiseList.push(promise);
+  });
+  Promise.all(promiseList).then(() => {
+    const s3DownloadStreams = fileList.map((key) => {
+      return {
+        stream: s3
+          .getObject({ Bucket: "megapack", Key: key })
+          .createReadStream(),
+        filename: key,
+      };
     });
+    const archive = archiver("zip");
+    archive.pipe(res);
+    s3DownloadStreams.forEach((streamDetails) =>
+      archive.append(streamDetails.stream, { name: streamDetails.filename })
+    );
+    archive.finalize();
   });
 });
 
