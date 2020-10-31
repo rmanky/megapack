@@ -14,9 +14,9 @@ actionButton.textContent = "Download Selected";
 actionButton.addEventListener("click", () => {
   requestDownload(downloadList);
   selectedButtons.forEach((button) => {
-      button.classList.remove("btn-danger");
-      button.classList.add("btn-success");
-      button.textContent = "Add";
+    button.classList.remove("btn-danger");
+    button.classList.add("btn-success");
+    button.textContent = "Add";
   });
   actionButton.classList.add("invisible");
   selectedButtons = [];
@@ -26,36 +26,41 @@ actionButton.addEventListener("click", () => {
 document.body.appendChild(actionButton);
 
 function requestDownload(folderList) {
-  const folders = [...folderList];
-  const fileStream = streamSaver.createWriteStream("download.zip");
+  window.open('/download?folders=' + JSON.stringify(folderList));
 
-  fetch("/download", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ folders: folders }),
-  }).then((response) => {
-    const readableStream = response.body;
+//   fetch("/download", {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//     },
+//     body: JSON.stringify({ folders: folders }),
+//   })
+//     .then((res) => res.blob())
+//     .then((blob) => {
+//       const dest = fs.createWriteStream("./octocat.png");
+//       res.body.pipe(dest);
+//     });
+  //   }).then((response) => {
+  //     const readableStream = response.body;
 
-    if (window.WritableStream && readableStream.pipeTo) {
-      return readableStream
-        .pipeTo(fileStream)
-        .then(() => console.log("done writing"));
-    }
+  //     if (window.WritableStream && readableStream.pipeTo) {
+  //       return readableStream
+  //         .pipeTo(fileStream)
+  //         .then(() => console.log("done writing"));
+  //     }
 
-    window.writer = fileStream.getWriter();
+  //     window.writer = fileStream.getWriter();
 
-    const reader = res.body.getReader();
-    const pump = () =>
-      reader
-        .read()
-        .then((res) =>
-          res.done ? writer.close() : writer.write(res.value).then(pump)
-        );
+  //     const reader = res.body.getReader();
+  //     const pump = () =>
+  //       reader
+  //         .read()
+  //         .then((res) =>
+  //           res.done ? writer.close() : writer.write(res.value).then(pump)
+  //         );
 
-    pump();
-  });
+  //     pump();
+  //   });
 }
 
 fetch("/list", {

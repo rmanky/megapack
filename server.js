@@ -108,10 +108,15 @@ async function getImage(imageKey) {
   return data;
 }
 
-app.post("/download", (req, res) => {
-  let folders = req.body.folders;
+app.get("/download", (req, res) => {
+  let folders = req.query.folders;
+  folders = JSON.parse(folders);
+  console.log(folders);
   let fileList = [];
   let promiseList = [];
+
+  res.attachment('download.zip');
+
   folders.forEach((folder) => {
     const folderParams = {
       Bucket: "megapack",
