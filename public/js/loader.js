@@ -26,41 +26,7 @@ actionButton.addEventListener("click", () => {
 document.body.appendChild(actionButton);
 
 function requestDownload(folderList) {
-  window.open('/download?folders=' + JSON.stringify(folderList));
-
-//   fetch("/download", {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//     },
-//     body: JSON.stringify({ folders: folders }),
-//   })
-//     .then((res) => res.blob())
-//     .then((blob) => {
-//       const dest = fs.createWriteStream("./octocat.png");
-//       res.body.pipe(dest);
-//     });
-  //   }).then((response) => {
-  //     const readableStream = response.body;
-
-  //     if (window.WritableStream && readableStream.pipeTo) {
-  //       return readableStream
-  //         .pipeTo(fileStream)
-  //         .then(() => console.log("done writing"));
-  //     }
-
-  //     window.writer = fileStream.getWriter();
-
-  //     const reader = res.body.getReader();
-  //     const pump = () =>
-  //       reader
-  //         .read()
-  //         .then((res) =>
-  //           res.done ? writer.close() : writer.write(res.value).then(pump)
-  //         );
-
-  //     pump();
-  //   });
+  window.open("/download?folders=" + JSON.stringify(folderList));
 }
 
 fetch("/list", {
@@ -68,11 +34,9 @@ fetch("/list", {
 })
   .then((response) => response.json())
   .then((body) => {
-    console.log(body.localStorage);
-
-    body.localStorage.forEach((folder) =>
-      createAccordion(folder[0], folder[1])
-    );
+    body.localStorage.forEach((folder) => {
+      createAccordion(folder[0], folder[1]);
+    });
   });
 
 function createAccordion(folder, contents) {
@@ -145,17 +109,17 @@ function generateContentCard(content) {
   contentButton.textContent = "Add";
 
   contentButton.addEventListener("click", () => {
-    if (downloadList.includes(content.liveryKey)) {
+    if (downloadList.includes(content.indexKey)) {
       contentButton.classList.remove("btn-danger");
       contentButton.classList.add("btn-success");
       contentButton.textContent = "Add";
-      downloadList = downloadList.filter((e) => e !== content.liveryKey);
+      downloadList = downloadList.filter((e) => e !== content.indexKey);
       selectedButtons = selectedButtons.filter((e) => e !== contentButton);
     } else {
       contentButton.classList.remove("btn-success");
       contentButton.classList.add("btn-danger");
       contentButton.textContent = "Remove";
-      downloadList.push(content.liveryKey);
+      downloadList.push(content.indexKey);
       selectedButtons.push(contentButton);
     }
     if (downloadList.length > 0) {
@@ -185,7 +149,6 @@ function loadImage(contentImage, imageKey) {
     .then((response) => response.blob())
     .then((body) => {
       const outside = URL.createObjectURL(body);
-      console.log(outside);
       contentImage.src = outside;
     });
 }

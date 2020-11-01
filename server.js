@@ -18,12 +18,14 @@ var s3 = new AWS.S3({
 });
 
 var localStorage = new Map();
+var shortHand = [];
 
 var params = {
   Bucket: "megapack",
 };
 
 function s3Print(keys) {
+  let i = 0;
   keys.forEach((key) => {
     if (
       key.includes("thumbnail_small.jpg") ||
@@ -33,8 +35,10 @@ function s3Print(keys) {
       var liveryKey = key.split("/")[0];
       var imageKey = key;
       var entry = {
+        aircraftKey: aircraftKey,
         liveryKey: liveryKey,
         imageKey: imageKey,
+        indexKey: i,
       };
       if (localStorage.has(aircraftKey)) {
         localStorage.get(aircraftKey).push(entry);
@@ -43,6 +47,9 @@ function s3Print(keys) {
         arr.push(entry);
         localStorage.set(aircraftKey, arr);
       }
+
+      shortHand.push(entry.liveryKey);
+      i++;
     }
   });
   console.log("finished local storage");
@@ -111,16 +118,15 @@ async function getImage(imageKey) {
 app.get("/download", (req, res) => {
   let folders = req.query.folders;
   folders = JSON.parse(folders);
-  console.log(folders);
   let fileList = [];
   let promiseList = [];
 
-  res.attachment('download.zip');
+  res.attachment("download.zip");
 
   folders.forEach((folder) => {
     const folderParams = {
       Bucket: "megapack",
-      Prefix: folder + "/",
+      Prefix: shortHand[folder] + "/",
     };
     const promise = new Promise((resolve, reject) => {
       s3.listObjectsV2(folderParams, function (err, data) {
